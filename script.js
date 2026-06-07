@@ -14,6 +14,8 @@ const outcomePill = document.getElementById('outcomePill');
 const timeline = document.getElementById('timeline');
 const messageA = document.getElementById('messageA');
 const messageB = document.getElementById('messageB');
+const connectionA = document.getElementById('connectionA');
+const connectionB = document.getElementById('connectionB');
 
 const actorStates = {
   coordinator: document.getElementById('coordinatorState'),
@@ -21,13 +23,13 @@ const actorStates = {
   processB: document.getElementById('processBState')
 };
 
-const actorCards = {
+const actorNodes = {
   coordinator: document.querySelector('[data-actor="coordinator"]'),
   processA: document.querySelector('[data-actor="processA"]'),
   processB: document.querySelector('[data-actor="processB"]')
 };
 
-const phaseCards = {
+const phaseSteps = {
   prepare: document.querySelector('[data-phase="prepare"]'),
   vote: document.querySelector('[data-phase="vote"]'),
   decision: document.querySelector('[data-phase="decision"]')
@@ -46,9 +48,9 @@ const SCENARIOS = {
         activeActors: ['coordinator'],
         messages: [{ lane: 'A', text: 'PREPARE' }, { lane: 'B', text: 'PREPARE' }],
         states: {
-          coordinator: 'Waiting for participant votes.',
-          processA: 'Received PREPARE; checking local transaction state.',
-          processB: 'Received PREPARE; checking local transaction state.'
+          coordinator: 'Waiting for votes.',
+          processA: 'Checking local state.',
+          processB: 'Checking local state.'
         },
         log: 'Coordinator -> A/B: PREPARE'
       },
@@ -59,9 +61,9 @@ const SCENARIOS = {
         activeActors: ['processA', 'processB'],
         messages: [{ lane: 'A', text: 'ACK', returning: true }, { lane: 'B', text: 'ACK', returning: true }],
         states: {
-          coordinator: 'Received ACK from both participants.',
-          processA: 'Voted ACK and entered prepared state.',
-          processB: 'Voted ACK and entered prepared state.'
+          coordinator: 'Two ACKs received.',
+          processA: 'Prepared (ACK).',
+          processB: 'Prepared (ACK).'
         },
         log: 'A/B -> Coordinator: ACK'
       },
@@ -72,9 +74,9 @@ const SCENARIOS = {
         activeActors: ['coordinator'],
         messages: [{ lane: 'A', text: 'COMMIT', tone: 'commit' }, { lane: 'B', text: 'COMMIT', tone: 'commit' }],
         states: {
-          coordinator: 'Final decision: COMMIT.',
-          processA: 'Received COMMIT and made the transaction durable.',
-          processB: 'Received COMMIT and made the transaction durable.'
+          coordinator: 'Decision: COMMIT.',
+          processA: 'Committed.',
+          processB: 'Committed.'
         },
         log: 'Coordinator -> A/B: COMMIT'
       }
@@ -92,9 +94,9 @@ const SCENARIOS = {
         activeActors: ['coordinator'],
         messages: [{ lane: 'A', text: 'PREPARE' }, { lane: 'B', text: 'PREPARE' }],
         states: {
-          coordinator: 'Waiting for participant votes.',
-          processA: 'Received PREPARE but may fail.',
-          processB: 'Received PREPARE and can vote.'
+          coordinator: 'Waiting for votes.',
+          processA: 'Preparing.',
+          processB: 'Preparing.'
         },
         log: 'Coordinator -> A/B: PREPARE'
       },
@@ -105,9 +107,9 @@ const SCENARIOS = {
         activeActors: ['processA', 'processB'],
         messages: [{ lane: 'A', text: 'NO', returning: true, tone: 'abort' }, { lane: 'B', text: 'ACK', returning: true }],
         states: {
-          coordinator: 'Detected a failed vote. Commit is no longer safe.',
-          processA: 'Failed before voting yes.',
-          processB: 'Voted ACK and waits for the final decision.'
+          coordinator: 'NO vote received.',
+          processA: 'Failed (NO).',
+          processB: 'Prepared (ACK).'
         },
         log: 'A -> Coordinator: NO; B -> Coordinator: ACK'
       },
@@ -118,9 +120,9 @@ const SCENARIOS = {
         activeActors: ['coordinator'],
         messages: [{ lane: 'A', text: 'ABORT', tone: 'abort' }, { lane: 'B', text: 'ABORT', tone: 'abort' }],
         states: {
-          coordinator: 'Final decision: ABORT.',
-          processA: 'Rolls back or remains aborted.',
-          processB: 'Receives ABORT and rolls back.'
+          coordinator: 'Decision: ABORT.',
+          processA: 'Aborted.',
+          processB: 'Rolled back.'
         },
         log: 'Coordinator -> A/B: ABORT'
       }
@@ -138,9 +140,9 @@ const SCENARIOS = {
         activeActors: ['coordinator'],
         messages: [{ lane: 'A', text: 'PREPARE' }, { lane: 'B', text: 'PREPARE' }],
         states: {
-          coordinator: 'Waiting for ACK responses.',
-          processA: 'PREPARE response is delayed.',
-          processB: 'Received PREPARE and can vote.'
+          coordinator: 'Waiting for votes.',
+          processA: 'Response delayed.',
+          processB: 'Preparing.'
         },
         log: 'Coordinator -> A/B: PREPARE'
       },
@@ -151,9 +153,9 @@ const SCENARIOS = {
         activeActors: ['processA', 'processB'],
         messages: [{ lane: 'A', text: 'TIMEOUT', returning: true, tone: 'abort' }, { lane: 'B', text: 'ACK', returning: true }],
         states: {
-          coordinator: 'Timeout means the coordinator cannot safely commit.',
-          processA: 'Timed out before completing the vote.',
-          processB: 'Voted ACK and is waiting.'
+          coordinator: 'A timed out.',
+          processA: 'Timed out.',
+          processB: 'Prepared (ACK).'
         },
         log: 'A: timeout; B -> Coordinator: ACK'
       },
@@ -164,9 +166,9 @@ const SCENARIOS = {
         activeActors: ['coordinator'],
         messages: [{ lane: 'A', text: 'ABORT', tone: 'abort' }, { lane: 'B', text: 'ABORT', tone: 'abort' }],
         states: {
-          coordinator: 'Final decision: ABORT.',
-          processA: 'Receives ABORT if it comes back.',
-          processB: 'Receives ABORT and rolls back.'
+          coordinator: 'Decision: ABORT.',
+          processA: 'Aborted on return.',
+          processB: 'Rolled back.'
         },
         log: 'Coordinator -> A/B: ABORT'
       }
@@ -215,21 +217,36 @@ function setPlaybackState(isPlaying) {
 }
 
 function clearActiveClasses() {
-  Object.values(actorCards).forEach(card => {
-    card.classList.remove('is-active', 'is-commit', 'is-abort');
+  Object.values(actorNodes).forEach(node => {
+    node.classList.remove('is-active', 'is-commit', 'is-abort');
   });
-  Object.values(phaseCards).forEach(card => card.classList.remove('is-active'));
+  Object.values(phaseSteps).forEach(step => step.classList.remove('is-active', 'is-complete'));
+  [connectionA, connectionB].forEach(connection => {
+    connection.classList.remove('is-active', 'is-commit', 'is-abort');
+  });
 }
 
 function triggerMessage(message, config) {
-  message.className = 'message-bubble';
+  const route = config.lane.toLowerCase();
+  const direction = config.returning ? 'direction-in' : 'direction-out';
+  message.className = `network-message route-${route} ${direction}`;
   message.textContent = config.text;
   if (config.tone === 'abort') message.classList.add('is-abort');
   if (config.tone === 'commit') message.classList.add('is-commit');
+  message.style.setProperty(
+    '--message-duration',
+    `${Math.max(420, 950 / Number(speedInput.value))}ms`
+  );
 
+  void message.offsetWidth;
   requestAnimationFrame(() => {
-    message.classList.add(config.returning ? 'is-returning' : 'is-moving');
+    message.classList.add('is-moving');
   });
+
+  const connection = config.lane === 'A' ? connectionA : connectionB;
+  connection.classList.add('is-active');
+  if (config.tone === 'abort') connection.classList.add('is-abort');
+  if (config.tone === 'commit') connection.classList.add('is-commit');
 }
 
 function renderTimeline() {
@@ -252,17 +269,24 @@ function renderStep(index) {
   clearActiveClasses();
   stateTitle.textContent = step.title;
   stateDescription.textContent = step.description;
+  outcomePill.className = 'pill';
   outcomePill.textContent = index === scenario.steps.length - 1 ? scenario.outcome : 'In progress';
 
-  if (step.phase) phaseCards[step.phase].classList.add('is-active');
-  step.activeActors.forEach(actor => actorCards[actor].classList.add('is-active'));
+  const orderedPhases = ['prepare', 'vote', 'decision'];
+  const currentPhaseIndex = orderedPhases.indexOf(step.phase);
+  orderedPhases.forEach((phase, phaseIndex) => {
+    if (phaseIndex < currentPhaseIndex) phaseSteps[phase].classList.add('is-complete');
+  });
+  if (step.phase) phaseSteps[step.phase].classList.add('is-active');
+  step.activeActors.forEach(actor => actorNodes[actor].classList.add('is-active'));
 
   Object.entries(step.states).forEach(([actor, state]) => {
     actorStates[actor].textContent = state;
   });
 
   if (index === scenario.steps.length - 1) {
-    Object.values(actorCards).forEach(card => card.classList.add(scenario.finalClass));
+    Object.values(actorNodes).forEach(node => node.classList.add(scenario.finalClass));
+    outcomePill.classList.add(scenario.finalClass);
   }
 
   step.messages.forEach(config => {
@@ -312,10 +336,11 @@ function reset() {
   stateDescription.textContent = 'The coordinator has not sent PREPARE yet. Participants are idle.';
   outcomePill.textContent = 'Idle';
   actorStates.coordinator.textContent = 'Waiting for a transaction.';
-  actorStates.processA.textContent = 'Waiting on port 1233.';
-  actorStates.processB.textContent = 'Waiting on port 1234.';
-  messageA.className = 'message-bubble';
-  messageB.className = 'message-bubble';
+  actorStates.processA.textContent = 'Port 1233';
+  actorStates.processB.textContent = 'Port 1234';
+  outcomePill.className = 'pill';
+  messageA.className = 'network-message route-a';
+  messageB.className = 'network-message route-b';
   renderTimeline();
 }
 

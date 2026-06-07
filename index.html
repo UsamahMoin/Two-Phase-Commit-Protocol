@@ -69,51 +69,55 @@
         <span id="outcomePill" class="pill">Idle</span>
       </div>
 
-      <div class="actors" aria-label="Distributed system participants">
-        <article class="actor-card" data-actor="coordinator">
+      <div class="network-stage" aria-label="Coordinator connected to Process A and Process B">
+        <svg class="network-links" viewBox="0 0 1000 520" preserveAspectRatio="none" aria-hidden="true">
+          <path id="connectionA" class="network-link" d="M 500 115 L 230 395" />
+          <path id="connectionB" class="network-link" d="M 500 115 L 770 395" />
+        </svg>
+
+        <article class="network-node node-coordinator" data-actor="coordinator">
+          <span class="node-letter" aria-hidden="true">C</span>
           <span class="actor-role">Coordinator</span>
-          <h3>Transaction coordinator</h3>
+          <h3>Coordinator</h3>
           <p id="coordinatorState">Waiting for a transaction.</p>
         </article>
 
-        <article class="actor-card" data-actor="processA">
+        <article class="network-node node-a" data-actor="processA">
+          <span class="node-letter" aria-hidden="true">A</span>
           <span class="actor-role">Participant</span>
           <h3>Process A</h3>
-          <p id="processAState">Waiting on port 1233.</p>
+          <p id="processAState">Port 1233</p>
         </article>
 
-        <article class="actor-card" data-actor="processB">
+        <article class="network-node node-b" data-actor="processB">
+          <span class="node-letter" aria-hidden="true">B</span>
           <span class="actor-role">Participant</span>
           <h3>Process B</h3>
-          <p id="processBState">Waiting on port 1234.</p>
+          <p id="processBState">Port 1234</p>
         </article>
+
+        <div id="messageA" class="network-message route-a" aria-hidden="true">PREPARE</div>
+        <div id="messageB" class="network-message route-b" aria-hidden="true">PREPARE</div>
       </div>
 
-      <div class="message-lanes" aria-hidden="true">
-        <div class="lane">
-          <div id="messageA" class="message-bubble">PREPARE</div>
+      <div class="phase-flow" aria-label="Two-phase commit progress">
+        <div class="phase-step" data-phase="prepare">
+          <span>1</span>
+          <strong>Prepare</strong>
+          <small>Coordinator asks</small>
         </div>
-        <div class="lane">
-          <div id="messageB" class="message-bubble">PREPARE</div>
+        <i aria-hidden="true"></i>
+        <div class="phase-step" data-phase="vote">
+          <span>2</span>
+          <strong>Vote</strong>
+          <small>ACK or NO</small>
         </div>
-      </div>
-
-      <div class="phase-grid grid-3">
-        <article class="phase-card" data-phase="prepare">
-          <span class="phase-number">Phase 1</span>
-          <h3>Prepare</h3>
-          <p>Coordinator asks each participant whether it can commit.</p>
-        </article>
-        <article class="phase-card" data-phase="vote">
-          <span class="phase-number">Vote</span>
-          <h3>ACK or NO</h3>
-          <p>Participants respond. Every ACK is required for commit.</p>
-        </article>
-        <article class="phase-card" data-phase="decision">
-          <span class="phase-number">Phase 2</span>
-          <h3>Decision</h3>
-          <p>Coordinator sends COMMIT if all ACK; otherwise sends ABORT.</p>
-        </article>
+        <i aria-hidden="true"></i>
+        <div class="phase-step" data-phase="decision">
+          <span>3</span>
+          <strong>Decision</strong>
+          <small>Commit or abort</small>
+        </div>
       </div>
     </section>
 
