@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Two-Phase Commit Protocol Visualizer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <h1>Two-phase commit protocol visualizer</h1>
+      <p class="lead">Step through how a coordinator gets distributed participants to either commit together or abort together. The visualization follows the Python socket demo in this repository.</p>
+    </section>
+
+    <section class="panel controls" aria-label="Simulation controls">
+      <div class="field">
+        <label id="scenarioLabel">Scenario</label>
+        <div class="custom-select" id="scenarioSelect">
+          <button
+            id="scenarioButton"
+            class="select-trigger"
+            type="button"
+            aria-labelledby="scenarioLabel scenarioButtonText"
+            aria-haspopup="menu"
+            aria-expanded="false"
+          >
+            <span id="scenarioButtonText">Successful commit</span>
+            <span class="select-chevron" aria-hidden="true"></span>
+          </button>
+          <div id="scenarioMenu" class="select-menu" role="menu" aria-labelledby="scenarioLabel" hidden>
+            <button class="select-option is-selected" type="button" role="menuitemradio" aria-checked="true" data-scenario="commit">
+              <span><strong>Successful commit</strong><small>Both participants vote ACK</small></span>
+              <i aria-hidden="true"></i>
+            </button>
+            <button class="select-option" type="button" role="menuitemradio" aria-checked="false" data-scenario="participant-fails">
+              <span><strong>Participant A fails</strong><small>A votes NO, coordinator aborts</small></span>
+              <i aria-hidden="true"></i>
+            </button>
+            <button class="select-option" type="button" role="menuitemradio" aria-checked="false" data-scenario="timeout">
+              <span><strong>Participant A times out</strong><small>Missing ACK causes abort</small></span>
+              <i aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+        <p class="help">Choose the outcome to replay.</p>
+      </div>
+
+      <div class="field">
+        <label for="speed">Playback speed</label>
+        <input id="speed" type="range" min="0.7" max="2.2" value="1.2" step="0.1" />
+        <p class="help"><span id="speedLabel">1.2x</span> message speed.</p>
+      </div>
+
+      <div class="control-actions">
+        <button id="playBtn" class="button button-primary" type="button">Play</button>
+        <button id="stepBtn" class="button button-secondary" type="button">Step</button>
+        <button id="resetBtn" class="button button-secondary" type="button">Reset</button>
+      </div>
+    </section>
+
+    <section class="panel visual-panel">
+      <div class="panel-head">
+        <div>
+          <p class="section-label">Protocol state</p>
+          <h2 id="stateTitle">Ready to start</h2>
+          <p id="stateDescription">The coordinator has not sent PREPARE yet. Participants are idle.</p>
+        </div>
+        <span id="outcomePill" class="pill">Idle</span>
+      </div>
+
+      <div class="actors" aria-label="Distributed system participants">
+        <article class="actor-card" data-actor="coordinator">
+          <span class="actor-role">Coordinator</span>
+          <h3>Transaction coordinator</h3>
+          <p id="coordinatorState">Waiting for a transaction.</p>
+        </article>
+
+        <article class="actor-card" data-actor="processA">
+          <span class="actor-role">Participant</span>
+          <h3>Process A</h3>
+          <p id="processAState">Waiting on port 1233.</p>
+        </article>
+
+        <article class="actor-card" data-actor="processB">
+          <span class="actor-role">Participant</span>
+          <h3>Process B</h3>
+          <p id="processBState">Waiting on port 1234.</p>
+        </article>
+      </div>
+
+      <div class="message-lanes" aria-hidden="true">
+        <div class="lane">
+          <div id="messageA" class="message-bubble">PREPARE</div>
+        </div>
+        <div class="lane">
+          <div id="messageB" class="message-bubble">PREPARE</div>
+        </div>
+      </div>
+
+      <div class="phase-grid grid-3">
+        <article class="phase-card" data-phase="prepare">
+          <span class="phase-number">Phase 1</span>
+          <h3>Prepare</h3>
+          <p>Coordinator asks each participant whether it can commit.</p>
+        </article>
+        <article class="phase-card" data-phase="vote">
+          <span class="phase-number">Vote</span>
+          <h3>ACK or NO</h3>
+          <p>Participants respond. Every ACK is required for commit.</p>
+        </article>
+        <article class="phase-card" data-phase="decision">
+          <span class="phase-number">Phase 2</span>
+          <h3>Decision</h3>
+          <p>Coordinator sends COMMIT if all ACK; otherwise sends ABORT.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="timeline-layout">
+      <article class="panel">
+        <div class="panel-head compact-head">
+          <div>
+            <p class="section-label">Message timeline</p>
+            <h2>What happened</h2>
+          </div>
+        </div>
+        <ol id="timeline" class="timeline" aria-live="polite"></ol>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head compact-head">
+          <div>
+            <p class="section-label">Why it matters</p>
+            <h2>2PC guarantees atomic outcome</h2>
+          </div>
+        </div>
+        <p class="explain">Two-phase commit is an atomic commit protocol: all participants should reach the same final decision. The tradeoff is blocking behavior. After a participant votes ACK and enters the prepared state, it may have to wait for the coordinator's final COMMIT or ABORT decision.</p>
+        <p class="note"><strong>Mapped to this repo:</strong> <code>Coordinator.py</code> sends <code>PREPARE</code>, waits for two <code>ACK</code> messages, then broadcasts <code>COMMIT</code>; if any vote fails, it broadcasts <code>ABORT</code>.</p>
+      </article>
+    </section>
+
+    <article class="research-note">
+      <h3>References</h3>
+      <p>The model is based on the classic two-phase commit protocol used in distributed transaction systems. It illustrates the prepare/vote phase, the final decision phase, all-or-nothing commit behavior, and the blocking risk when a coordinator or participant fails mid-protocol.</p>
+      <div class="source-links">
+        <a href="https://dl.acm.org/doi/10.1145/356842.356846" target="_blank" rel="noreferrer">Gray, 1978</a>
+        <a href="https://dl.acm.org/doi/10.1145/971697.602224" target="_blank" rel="noreferrer">Skeen, 1981</a>
+        <a href="https://martinfowler.com/articles/patterns-of-distributed-systems/two-phase-commit.html" target="_blank" rel="noreferrer">Distributed Systems Pattern</a>
+      </div>
+    </article>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
