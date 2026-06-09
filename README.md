@@ -5,7 +5,7 @@ This repository contains a Python socket demo of the two-phase commit protocol a
 ## Live Visualization
 
 ```text
-https://usamahmoin.github.io/two-phase-commit-protocol/
+https://usamahmoin.github.io/Two-Phase-Commit-Protocol/
 ```
 
 The page lets you step through:
